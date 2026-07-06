@@ -1,3 +1,5 @@
 AUDIT_REPORT.md
 FEATURES.md
 CLAUDE.md
+.claude/
+.agents/
