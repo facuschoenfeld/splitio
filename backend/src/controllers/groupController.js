@@ -3,7 +3,8 @@ const db = require('../config/db')
 const { sendBatchGroupInvites, sendGroupSummary } = require('../services/emailService')
 const { generateGroupSummaryPDF } = require('../services/pdfService')
 const { isGroupMember, isGroupAdmin } = require('../utils/authorization')
-const { generatePlaceholderEmail, sanitizeUserEmail } = require('../utils/placeholderEmail')
+const { generatePlaceholderEmail } = require('../utils/placeholderEmail')
+const { fetchGroupMembers } = require('../utils/groupMembers')
 const { MAX_GROUP_MEMBERS, INVITE_TTL_MS, generateToken, countGroupMembers } = require('../utils/invitations')
 
 const FORBIDDEN = { error: { message: 'No tenés acceso a este grupo' } }
@@ -55,20 +56,9 @@ async function getById(req, res) {
     return res.status(403).json(FORBIDDEN)
   }
 
-  const members = await db('group_members')
-    .where({ group_id: group.id })
-    .join('users', 'users.id', 'group_members.user_id')
-    .select(
-      'users.id',
-      'users.name',
-      'users.email',
-      'users.avatar',
-      'group_members.nickname',
-      'group_members.payment_alias',
-      'group_members.cbu'
-    )
+  const members = await fetchGroupMembers(group.id, { withOverrides: true })
 
-  res.json({ ...group, members: members.map(sanitizeUserEmail) })
+  res.json({ ...group, members })
 }
 
 async function create(req, res) {
@@ -216,10 +206,7 @@ async function listMembers(req, res) {
   if (!(await isGroupMember(req.user.id, req.params.id))) {
     return res.status(403).json(FORBIDDEN)
   }
-  const members = await db('group_members')
-    .where({ group_id: req.params.id })
-    .join('users', 'users.id', 'group_members.user_id')
-    .select('users.id', 'users.name', 'users.email', 'users.avatar')
+  const members = await fetchGroupMembers(req.params.id)
 
   res.json(members)
 }
@@ -314,82 +301,16 @@ async function balances(req, res) {
     return res.status(403).json(FORBIDDEN)
   }
 
-  const members = await db('group_members')
-    .where({ group_id: groupId })
-    .join('users', 'users.id', 'group_members.user_id')
-    .select('users.id', 'users.name', 'users.email', 'users.avatar')
-
-  const expenses = await db('expenses').where({ group_id: groupId })
-  const expenseIds = expenses.map((e) => e.id)
-
-  const splits = expenseIds.length
-    ? await db('expense_splits').whereIn('expense_id', expenseIds)
-    : []
-
-  const splitsByExpense = {}
-  splits.forEach((s) => {
-    if (!splitsByExpense[s.expense_id]) splitsByExpense[s.expense_id] = []
-    splitsByExpense[s.expense_id].push(s.user_id)
-  })
-
-  const balanceMap = {}
-  members.forEach((m) => {
-    balanceMap[m.id] = { ...m, balance: 0 }
-  })
-
-  expenses.forEach((expense) => {
-    const splitMembers = splitsByExpense[expense.id] || []
-    if (splitMembers.length === 0) return // sin splits no se puede repartir; evita división por cero
-    const splitAmount = parseFloat(expense.amount) / splitMembers.length
-    // El pagador adelanta el monto total; cada miembro del split (incluido el
-    // pagador, si participa) consume su parte. Para un settlement el pagador
-    // (deudor) no está en el split, así que recupera el monto completo y el
-    // acreedor receptor reduce su saldo.
-    if (balanceMap[expense.paid_by]) {
-      balanceMap[expense.paid_by].balance += parseFloat(expense.amount)
-    }
-    splitMembers.forEach((id) => {
-      if (balanceMap[id]) {
-        balanceMap[id].balance -= splitAmount
-      }
-    })
-  })
-
-  const debtors = []
-  const creditors = []
-  Object.values(balanceMap).forEach((member) => {
-    if (member.balance < -0.01) debtors.push({ ...member })
-    else if (member.balance > 0.01) creditors.push({ ...member })
-  })
-
-  debtors.sort((a, b) => a.balance - b.balance)
-  creditors.sort((a, b) => b.balance - a.balance)
-
-  const debts = []
-  let i = 0
-  let j = 0
-  while (i < debtors.length && j < creditors.length) {
-    const amount = Math.min(-debtors[i].balance, creditors[j].balance)
-    debts.push({ from: debtors[i], to: creditors[j], amount: Math.round(amount * 100) / 100 })
-    debtors[i].balance += amount
-    creditors[j].balance -= amount
-    if (Math.abs(debtors[i].balance) < 0.01) i++
-    if (Math.abs(creditors[j].balance) < 0.01) j++
-  }
-
-  res.json({ balances: balanceMap, debts })
+  // Reutiliza el mismo cálculo que el resumen: emails saneados y balances
+  // normalizados a centavos (sin residuo de punto flotante).
+  const { balances, debts } = await buildGroupSummaryData(groupId)
+  res.json({ balances, debts })
 }
 
 // Reúne todos los datos del resumen de un grupo (members, gastos con splits,
 // balances y deudas minimizadas). Lo comparten el envío por email y la descarga.
 async function buildGroupSummaryData(groupId) {
-  const members = (await db('group_members')
-    .where({ group_id: groupId })
-    .join('users', 'users.id', 'group_members.user_id')
-    .select('users.id', 'users.name', 'users.email', 'users.avatar'))
-    // Los miembros sin email tienen un placeholder interno (@placeholder.local);
-    // no debe filtrarse al resumen.
-    .map(sanitizeUserEmail)
+  const members = await fetchGroupMembers(groupId)
 
   const expenses = await db('expenses').where({ group_id: groupId }).orderBy('date', 'desc')
   const expenseIds = expenses.map((e) => e.id)
