@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  /* Primary: blue-indigo */
+  --color-primary-50: #EEEDFF;
+  --color-primary-100: #DDDCFE;
+  --color-primary-200: #C0BCFF;
+  --color-primary-300: #9D98F6;
+  --color-primary-400: #7B76EB;
+  --color-primary-500: #514DDF;
+  --color-primary-600: #464BD8;
+  --color-primary-700: #383DB5;
+  --color-primary-800: #2A2C95;
+  --color-primary-900: #1E1F70;
+
+  /* Accent: mint/cyan */
+  --color-accent-50: #EAFEF8;
+  --color-accent-100: #C9FCEF;
+  --color-accent-200: #98F6E0;
+  --color-accent-300: #5EEECE;
+  --color-accent-400: #2AEFC8;
+  --color-accent-500: #16D5AF;
+  --color-accent-600: #0EAE8F;
+  --color-accent-700: #0B8A72;
+  --color-accent-800: #086B59;
+  --color-accent-900: #054E41;
+
+  /* Surface: navy-tinted neutrals */
+  --color-surface-50: #F5F7FA;
+  --color-surface-100: #EBEEF4;
+  --color-surface-200: #D3D8E5;
+  --color-surface-300: #AFB6CB;
+  --color-surface-400: #8189A7;
+  --color-surface-500: #5A6384;
+  --color-surface-600: #3F4766;
+  --color-surface-700: #2A3249;
+  --color-surface-800: #1E2538;
+  --color-surface-900: #151B28;
+  --color-surface-950: #0E121C;
+
+  /* Semantic */
+  --color-success-50: #ecfdf5;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-danger-50: #fef2f2;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+
+  /* Custom shadows */
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.04), 0 8px 20px -4px rgb(0 0 0 / 0.08);
+  --shadow-card-dark: 0 1px 3px rgb(0 0 0 / 0.3), 0 8px 20px -4px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(70 75 216 / 0.1);
+  --shadow-glow-primary: 0 4px 14px -2px rgb(70 75 216 / 0.45);
+  --shadow-glow-primary-dark: 0 4px 20px -2px rgb(70 75 216 / 0.6), 0 0 40px -8px rgb(70 75 216 / 0.25);
+  --shadow-glow-accent: 0 4px 14px -2px rgb(42 239 200 / 0.3);
+}
+
+body {
+  @apply bg-surface-50 text-surface-700 antialiased dark:bg-surface-950 dark:text-surface-200;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  @apply border-surface-200 dark:border-primary-700/15;
+}
+
+.dark ::selection {
+  background-color: rgb(70 75 216 / 0.35);
+}
+
+.dark ::-webkit-scrollbar {
+  width: 6px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgb(70 75 216 / 0.3);
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgb(70 75 216 / 0.5);
+}

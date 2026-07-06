@@ -1,0 +1,28 @@
+const { Router } = require('express')
+const auth = require('../middleware/auth')
+const { list, getById, create, update, remove, listMembers, addMember, removeMember, updateGroupMember, balances, sendSummary, downloadSummary, inviteByEmail, listInvitations, revokeInvitation, getInviteCode, generateInviteCode, revokeInviteCode } = require('../controllers/groupController')
+const { createGroupRules, inviteEmailRules } = require('../validators/groupValidator')
+
+const router = Router()
+
+router.use(auth)
+router.get('/', list)
+router.post('/', createGroupRules, create)
+router.get('/:id', getById)
+router.put('/:id', update)
+router.delete('/:id', remove)
+router.get('/:id/members', listMembers)
+router.post('/:id/members', addMember)
+router.put('/:id/members/:userId', updateGroupMember)
+router.delete('/:id/members/:userId', removeMember)
+router.get('/:id/balances', balances)
+router.post('/:id/summary', sendSummary)
+router.get('/:id/summary/pdf', downloadSummary)
+router.get('/:id/invitations', listInvitations)
+router.post('/:id/invitations', inviteEmailRules, inviteByEmail)
+router.delete('/:id/invitations/:invitationId', revokeInvitation)
+router.get('/:id/invite-code', getInviteCode)
+router.post('/:id/invite-code', generateInviteCode)
+router.delete('/:id/invite-code', revokeInviteCode)
+
+module.exports = router
