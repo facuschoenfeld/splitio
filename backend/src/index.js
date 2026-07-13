@@ -2,7 +2,9 @@ require('dotenv').config()
 const path = require('path')
 const express = require('express')
 const cors = require('cors')
+const swaggerUi = require('swagger-ui-express')
 const errorHandler = require('./middleware/errorHandler')
+const openapiSpec = require('./docs/openapi')
 
 const authRoutes = require('./routes/auth')
 const userRoutes = require('./routes/users')
@@ -18,6 +20,12 @@ app.use(express.json())
 
 // Avatares subidos por los usuarios (ver middleware/avatarUpload.js).
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
+
+// Documentación interactiva de la API (Swagger UI) y el spec OpenAPI crudo.
+app.get('/api/docs.json', (req, res) => res.json(openapiSpec))
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  customSiteTitle: 'Split Expenses API',
+}))
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
