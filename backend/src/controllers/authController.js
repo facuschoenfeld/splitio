@@ -115,28 +115,30 @@ async function forgotPassword(req, res) {
     message: 'Si el email está registrado, te enviamos un enlace para restablecer la contraseña',
   }
 
-  const user = await db('users')
-    .where({ email })
-    .select('id', 'name', 'email', 'password', 'status')
-    .first()
-
-  // Solo enviamos el email a cuentas activas (los invitados no tienen contraseña aún).
-  if (!user || !user.password || user.status === 'invited') {
-    return res.json(genericResponse)
-  }
-
-  const token = crypto.randomBytes(32).toString('hex')
-  await db('users').where({ id: user.id }).update({
-    reset_token_hash: hashToken(token),
-    reset_token_expires: new Date(Date.now() + RESET_TOKEN_TTL_MS),
-  })
-
-  const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`
+  // Ningún fallo interno (DB, email, etc.) debe filtrarse como 500: eso revelaría
+  // información al cliente y rompe la promesa de respuesta genérica. Logueamos y
+  // seguimos devolviendo el mismo mensaje.
   try {
+    const user = await db('users')
+      .where({ email })
+      .select('id', 'name', 'email', 'password', 'status')
+      .first()
+
+    // Solo enviamos el email a cuentas activas (los invitados no tienen contraseña aún).
+    if (!user || !user.password || user.status === 'invited') {
+      return res.json(genericResponse)
+    }
+
+    const token = crypto.randomBytes(32).toString('hex')
+    await db('users').where({ id: user.id }).update({
+      reset_token_hash: hashToken(token),
+      reset_token_expires: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    })
+
+    const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`
     await sendPasswordReset({ to: user.email, name: user.name, resetUrl })
   } catch (err) {
-    console.error('Error enviando email de reset:', err)
-    // No revelamos el fallo al cliente; la respuesta sigue siendo genérica.
+    console.error('Error en forgotPassword:', err)
   }
 
   res.json(genericResponse)
