@@ -6,6 +6,8 @@ const { isGroupMember, isGroupAdmin } = require('../utils/authorization')
 const { generatePlaceholderEmail } = require('../utils/placeholderEmail')
 const { fetchGroupMembers } = require('../utils/groupMembers')
 const { MAX_GROUP_MEMBERS, INVITE_TTL_MS, generateToken, countGroupMembers } = require('../utils/invitations')
+// Mismo cálculo que usa el frontend, para que la API, el PDF y la UI coincidan.
+const { calculateGroupBalances, calculateDebts } = require('../../../shared/balances.mjs')
 
 const FORBIDDEN = { error: { message: 'No tenés acceso a este grupo' } }
 const ADMIN_ONLY = { error: { message: 'Solo el administrador del grupo puede realizar esta acción' } }
@@ -330,51 +332,10 @@ async function buildGroupSummaryData(groupId) {
     splitBetween: splitsByExpense[e.id] || [],
   }))
 
-  const balanceMap = {}
-  members.forEach((m) => { balanceMap[m.id] = { ...m, balance: 0 } })
+  const balances = calculateGroupBalances(expensesWithSplits, members)
+  const debts = calculateDebts(balances)
 
-  expensesWithSplits.forEach((expense) => {
-    const splitMembers = expense.splitBetween
-    if (splitMembers.length === 0) return // sin splits no se puede repartir; evita división por cero
-    const splitAmount = parseFloat(expense.amount) / splitMembers.length
-    if (balanceMap[expense.paid_by]) {
-      balanceMap[expense.paid_by].balance += parseFloat(expense.amount)
-    }
-    splitMembers.forEach((id) => {
-      if (balanceMap[id]) balanceMap[id].balance -= splitAmount
-    })
-  })
-
-  const debtors = []
-  const creditors = []
-  Object.values(balanceMap).forEach((member) => {
-    if (member.balance < -0.01) debtors.push({ ...member })
-    else if (member.balance > 0.01) creditors.push({ ...member })
-  })
-  debtors.sort((a, b) => a.balance - b.balance)
-  creditors.sort((a, b) => b.balance - a.balance)
-
-  const debts = []
-  let i = 0
-  let j = 0
-  while (i < debtors.length && j < creditors.length) {
-    const amount = Math.min(-debtors[i].balance, creditors[j].balance)
-    debts.push({ from: debtors[i], to: creditors[j], amount: Math.round(amount * 100) / 100 })
-    debtors[i].balance += amount
-    creditors[j].balance -= amount
-    if (Math.abs(debtors[i].balance) < 0.01) i++
-    if (Math.abs(creditors[j].balance) < 0.01) j++
-  }
-
-  // Redondeo a centavos y colapso a 0 el residuo de punto flotante: un balance
-  // dentro del umbral de deuda (±0.01) está saldado y no debe mostrarse como
-  // deuda/crédito de un centavo (coincide con el corte de debtors/creditors).
-  Object.values(balanceMap).forEach((member) => {
-    const rounded = Math.round(member.balance * 100) / 100
-    member.balance = Math.abs(rounded) <= 0.01 ? 0 : rounded
-  })
-
-  return { members, expenses: expensesWithSplits, balances: balanceMap, debts }
+  return { members, expenses: expensesWithSplits, balances, debts }
 }
 
 async function sendSummary(req, res) {

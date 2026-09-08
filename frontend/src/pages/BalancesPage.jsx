@@ -6,7 +6,7 @@ import BalanceCard from '@/components/balances/BalanceCard'
 import Avatar from '@/components/ui/Avatar'
 import { useGroupStore } from '@/stores/useGroupStore'
 import { useExpenseStore } from '@/stores/useExpenseStore'
-import { calculateGroupBalances, calculateDebts } from '@/utils/calculateBalances'
+import { calculateGroupBalances, calculateDebts } from '@shared/balances'
 import { resolveGroupMembers } from '@/utils/groupMembers'
 import { formatCurrency } from '@/utils/formatCurrency'
 

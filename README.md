@@ -93,11 +93,19 @@ split_expenses/
 │       ├── pages/
 │       ├── router/
 │       ├── stores/       # Estado global con Zustand
-│       └── utils/        # Cálculo de balances y deudas
+│       └── utils/        # Formato de moneda y fechas, agrupaciones, helpers
+├── shared/               # Código compartido por frontend y backend
+│   └── balances.mjs      # Cálculo de balances y deudas (fuente única)
+├── diagramas.md          # Casos de uso y diagramas de secuencia
 └── DATABASE.md           # Diagramas y referencia del esquema
 ```
 
 Arquitectura del backend en capas: `routes → validators → controllers → knex`.
+
+`shared/balances.mjs` es la **única** implementación del cálculo de balances: la importan las
+vistas de React (alias `@shared`) y el backend (`buildGroupSummaryData`, que alimenta
+`GET /groups/:id/balances` y el resumen en PDF). Trabaja en centavos enteros, así que la UI, la
+API y el PDF muestran siempre los mismos números.
 
 ---
 

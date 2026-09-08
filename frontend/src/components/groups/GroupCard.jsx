@@ -5,7 +5,7 @@ import Avatar from '@/components/ui/Avatar'
 import { useGroupStore } from '@/stores/useGroupStore'
 import { useExpenseStore } from '@/stores/useExpenseStore'
 import { formatCurrency } from '@/utils/formatCurrency'
-import { calculateGroupBalances, calculateDebts } from '@/utils/calculateBalances'
+import { calculateGroupBalances, calculateDebts } from '@shared/balances'
 
 export default function GroupCard({ group }) {
   const members = useGroupStore((s) => s.members)

@@ -14,7 +14,7 @@ import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/dateFormat'
-import { calculateGroupBalances, calculateDebts } from '@/utils/calculateBalances'
+import { calculateGroupBalances, calculateDebts } from '@shared/balances'
 import { resolveGroupMembers } from '@/utils/groupMembers'
 import { api, downloadFile } from '@/api/client'
 

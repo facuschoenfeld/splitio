@@ -7,7 +7,7 @@ import { useExpenseStore } from '@/stores/useExpenseStore'
 import { useGroupStore } from '@/stores/useGroupStore'
 import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { calculateGroupBalances } from '@/utils/calculateBalances'
+import { calculateGroupBalances } from '@shared/balances'
 
 export default function DashboardPage() {
   const expenses = useExpenseStore((s) => s.expenses)
