@@ -96,7 +96,6 @@ split_expenses/
 │       └── utils/        # Formato de moneda y fechas, agrupaciones, helpers
 ├── shared/               # Código compartido por frontend y backend
 │   └── balances.mjs      # Cálculo de balances y deudas (fuente única)
-├── diagramas.md          # Casos de uso y diagramas de secuencia
 └── DATABASE.md           # Diagramas y referencia del esquema
 ```
 
