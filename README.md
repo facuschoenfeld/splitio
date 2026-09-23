@@ -94,9 +94,8 @@ split_expenses/
 │       ├── router/
 │       ├── stores/       # Estado global con Zustand
 │       └── utils/        # Formato de moneda y fechas, agrupaciones, helpers
-├── shared/               # Código compartido por frontend y backend
-│   └── balances.mjs      # Cálculo de balances y deudas (fuente única)
-└── DATABASE.md           # Diagramas y referencia del esquema
+└── shared/               # Código compartido por frontend y backend
+    └── balances.mjs      # Cálculo de balances y deudas (fuente única)
 ```
 
 Arquitectura del backend en capas: `routes → validators → controllers → knex`.
