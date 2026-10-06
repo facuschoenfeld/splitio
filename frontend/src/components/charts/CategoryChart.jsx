@@ -46,11 +46,14 @@ export default function CategoryChart({ expenses, title = 'Gastos por categoría
 
   const series = data.map((d) => d.total)
   const options = {
-    chart: { type: 'donut', fontFamily: 'inherit' },
+    // El modo dark de ApexCharts pinta un fondo gris propio; lo dejamos transparente
+    // para que se vea el fondo de la Card.
+    chart: { type: 'donut', fontFamily: 'inherit', background: 'transparent' },
     labels: data.map((d) => d.label),
     colors: data.map((d) => d.hex),
     theme: { mode: isDark ? 'dark' : 'light' },
-    stroke: { colors: [isDark ? '#0f172a' : '#ffffff'] },
+    // Mismo color que el fondo de la Card (surface-900 en dark) para que el borde entre sectores no se note.
+    stroke: { colors: [isDark ? '#151B28' : '#ffffff'] },
     dataLabels: {
       enabled: true,
       formatter: (val) => `${Math.round(val)}%`,
