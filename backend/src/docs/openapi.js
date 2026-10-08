@@ -829,7 +829,10 @@ const openapi = {
       },
       delete: {
         tags: ['Groups'],
-        summary: 'Quitar un miembro del grupo',
+        summary: 'Quitar un miembro del grupo o salir de él',
+        description:
+          'Cualquier miembro puede salir del grupo (`userId` = el propio); solo el administrador puede quitar a otros. ' +
+          'El administrador no puede salir, y no se puede quitar a un miembro con saldo distinto de cero.',
         security: bearerAuth,
         parameters: [
           groupIdParam,
@@ -838,8 +841,25 @@ const openapi = {
         responses: {
           204: { description: 'Miembro eliminado' },
           401: unauthorizedResponse,
-          403: forbiddenGroupResponse,
+          403: {
+            description: 'No es miembro del grupo, o intenta quitar a otro sin ser el administrador',
+            content: {
+              'application/json': {
+                schema: ref('Error'),
+                example: { error: { message: 'Solo el administrador del grupo puede realizar esta acción' } },
+              },
+            },
+          },
           404: errorResponse('Miembro no encontrado en el grupo'),
+          409: {
+            description: 'El administrador intenta salir, o el miembro tiene saldo pendiente',
+            content: {
+              'application/json': {
+                schema: ref('Error'),
+                example: { error: { message: 'El miembro tiene saldo pendiente. Primero hay que saldar sus deudas' } },
+              },
+            },
+          },
         },
       },
     },

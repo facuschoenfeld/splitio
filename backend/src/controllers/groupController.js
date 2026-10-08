@@ -243,18 +243,40 @@ async function addMember(req, res) {
   res.status(201).json({ message: 'Miembro agregado' })
 }
 
+// Cualquier miembro puede salir del grupo; solo el administrador puede quitar a otros.
 async function removeMember(req, res) {
-  if (!(await isGroupMember(req.user.id, req.params.id))) {
+  const groupId = req.params.id
+  // Las claves de `balances` son los UUID en minúscula, como los devuelve Postgres.
+  const userId = String(req.params.userId).toLowerCase()
+
+  if (!(await isGroupMember(req.user.id, groupId))) {
     return res.status(403).json(FORBIDDEN)
   }
-  const deleted = await db('group_members')
-    .where({ group_id: req.params.id, user_id: req.params.userId })
-    .del()
-
-  if (!deleted) {
+  const isSelf = userId === String(req.user.id).toLowerCase()
+  const isAdmin = await isGroupAdmin(req.user.id, groupId)
+  if (!isSelf && !isAdmin) {
+    return res.status(403).json(ADMIN_ONLY)
+  }
+  // El creador no puede dejar el grupo sin administrador: si no lo quiere más, lo elimina.
+  if (isSelf && isAdmin) {
+    return res.status(409).json({
+      error: { message: 'El administrador no puede salir del grupo. Si ya no lo necesitás, eliminalo' },
+    })
+  }
+  if (!(await isGroupMember(userId, groupId))) {
     return res.status(404).json({ error: { message: 'Miembro no encontrado en el grupo' } })
   }
 
+  // El cálculo de balances ignora a quien ya no es miembro: si se fuera con saldo,
+  // los balances del resto dejarían de sumar cero y esa deuda no podría saldarse.
+  const { balances } = await buildGroupSummaryData(groupId)
+  if (balances[userId]?.balance !== 0) {
+    return res.status(409).json({
+      error: { message: 'El miembro tiene saldo pendiente. Primero hay que saldar sus deudas' },
+    })
+  }
+
+  await db('group_members').where({ group_id: groupId, user_id: userId }).del()
   res.status(204).end()
 }
 
