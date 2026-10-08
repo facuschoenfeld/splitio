@@ -40,9 +40,9 @@ export default function DeleteGroupModal() {
           ? 'Se envió el resumen y se eliminó el grupo'
           : `"${group.name}" fue eliminado correctamente`,
       })
-    } catch {
+    } catch (err) {
       setLoading(false)
-      toast.error('Error al eliminar el grupo')
+      toast.error('Error al eliminar el grupo', { description: err.message })
     }
   }
 

@@ -1,8 +1,13 @@
 const { validationResult } = require('express-validator')
 const db = require('../config/db')
-const { isGroupMember } = require('../utils/authorization')
+const { isGroupMember, areGroupMembers } = require('../utils/authorization')
 
 const FORBIDDEN = { error: { message: 'No tenés acceso a este recurso' } }
+const PARTICIPANTS_NOT_MEMBERS = {
+  error: { message: 'El pagador y los participantes deben ser miembros del grupo' },
+}
+const SETTLE_NOT_MEMBERS = { error: { message: 'El deudor y el acreedor deben ser miembros del grupo' } }
+const SETTLE_SAME_USER = { error: { message: 'El deudor y el acreedor deben ser personas distintas' } }
 
 async function list(req, res) {
   const { groupId } = req.query
@@ -79,10 +84,17 @@ async function create(req, res) {
     return res.status(400).json({ errors: errors.array() })
   }
 
-  const { groupId, description, amount, paidBy, splitBetween, category, date } = req.body
+  const { groupId, description, amount, paidBy, category, date } = req.body
+  // Un id repetido violaría la PK de expense_splits; se cuenta una sola vez.
+  const splitBetween = [...new Set(req.body.splitBetween.map((id) => id.toLowerCase()))]
 
   if (!(await isGroupMember(req.user.id, groupId))) {
     return res.status(403).json(FORBIDDEN)
+  }
+  // Si el pagador o un participante no es del grupo, el cálculo de balances lo
+  // ignora y los balances del grupo dejarían de sumar cero.
+  if (!(await areGroupMembers([paidBy, ...splitBetween], groupId))) {
+    return res.status(400).json(PARTICIPANTS_NOT_MEMBERS)
   }
 
   const expense = await db.transaction(async (trx) => {
@@ -139,6 +151,12 @@ async function settle(req, res) {
 
   if (!(await isGroupMember(req.user.id, groupId))) {
     return res.status(403).json(FORBIDDEN)
+  }
+  if (fromUserId.toLowerCase() === toUserId.toLowerCase()) {
+    return res.status(400).json(SETTLE_SAME_USER)
+  }
+  if (!(await areGroupMembers([fromUserId, toUserId], groupId))) {
+    return res.status(400).json(SETTLE_NOT_MEMBERS)
   }
 
   const expense = await db.transaction(async (trx) => {

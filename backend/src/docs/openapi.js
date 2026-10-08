@@ -1048,7 +1048,15 @@ const openapi = {
         },
         responses: {
           201: jsonResponse('Gasto creado', ref('Expense')),
-          400: validationErrorResponse('Monto debe ser mayor a 0', 'amount'),
+          400: {
+            description: 'Datos inválidos, o el pagador o algún participante no es miembro del grupo',
+            content: {
+              'application/json': {
+                schema: { oneOf: [ref('ValidationError'), ref('Error')] },
+                example: { error: { message: 'El pagador y los participantes deben ser miembros del grupo' } },
+              },
+            },
+          },
           401: unauthorizedResponse,
           403: forbiddenExpenseResponse,
         },
@@ -1081,7 +1089,16 @@ const openapi = {
         },
         responses: {
           201: jsonResponse('Liquidación registrada', ref('Expense')),
-          400: validationErrorResponse('ID de acreedor inválido', 'toUserId'),
+          400: {
+            description:
+              'Datos inválidos, deudor y acreedor iguales, o alguno de los dos no es miembro del grupo',
+            content: {
+              'application/json': {
+                schema: { oneOf: [ref('ValidationError'), ref('Error')] },
+                example: { error: { message: 'El deudor y el acreedor deben ser miembros del grupo' } },
+              },
+            },
+          },
           401: unauthorizedResponse,
           403: forbiddenExpenseResponse,
         },

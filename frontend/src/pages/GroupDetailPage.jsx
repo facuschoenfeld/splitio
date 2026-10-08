@@ -100,9 +100,9 @@ export default function GroupDetailPage() {
       setSummaryStatus('sent')
       toast.success('Resumen enviado', { description: 'Se envió el resumen del grupo a tu email' })
       setTimeout(() => setSummaryStatus('idle'), 3000)
-    } catch {
+    } catch (err) {
       setSummaryStatus('error')
-      toast.error('Error al enviar el resumen')
+      toast.error('Error al enviar el resumen', { description: err.message })
       setTimeout(() => setSummaryStatus('idle'), 3000)
     }
   }
