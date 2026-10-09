@@ -1140,12 +1140,25 @@ const openapi = {
       delete: {
         tags: ['Expenses'],
         summary: 'Eliminar un gasto',
+        description:
+          'Solo pueden eliminarlo quien lo pagó o el administrador del grupo. Al eliminarlo se recalculan los ' +
+          'balances del grupo.',
         security: bearerAuth,
         parameters: [expenseIdParam],
         responses: {
           204: { description: 'Gasto eliminado' },
           401: unauthorizedResponse,
-          403: forbiddenExpenseResponse,
+          403: {
+            description: 'No es miembro del grupo, o no es quien pagó el gasto ni el administrador',
+            content: {
+              'application/json': {
+                schema: ref('Error'),
+                example: {
+                  error: { message: 'Solo quien pagó el gasto o el administrador del grupo pueden eliminarlo' },
+                },
+              },
+            },
+          },
           404: expenseNotFoundResponse,
         },
       },

@@ -7,6 +7,7 @@ import EditMemberModal from '@/components/groups/EditMemberModal'
 import AddExpenseModal from '@/components/expenses/AddExpenseModal'
 import SettleDebtModal from '@/components/balances/SettleDebtModal'
 import DeleteGroupModal from '@/components/groups/DeleteGroupModal'
+import DeleteExpenseModal from '@/components/expenses/DeleteExpenseModal'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useGroupStore } from '@/stores/useGroupStore'
 import { useExpenseStore } from '@/stores/useExpenseStore'
@@ -51,6 +52,7 @@ export default function App() {
           <AddExpenseModal />
           <SettleDebtModal />
           <DeleteGroupModal />
+          <DeleteExpenseModal />
         </>
       )}
       <Toaster

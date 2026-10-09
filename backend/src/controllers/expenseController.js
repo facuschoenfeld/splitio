@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator')
 const db = require('../config/db')
-const { isGroupMember, areGroupMembers } = require('../utils/authorization')
+const { isGroupMember, areGroupMembers, isGroupAdmin } = require('../utils/authorization')
 
 const FORBIDDEN = { error: { message: 'No tenés acceso a este recurso' } }
 const PARTICIPANTS_NOT_MEMBERS = {
@@ -8,6 +8,9 @@ const PARTICIPANTS_NOT_MEMBERS = {
 }
 const SETTLE_NOT_MEMBERS = { error: { message: 'El deudor y el acreedor deben ser miembros del grupo' } }
 const SETTLE_SAME_USER = { error: { message: 'El deudor y el acreedor deben ser personas distintas' } }
+const DELETE_NOT_ALLOWED = {
+  error: { message: 'Solo quien pagó el gasto o el administrador del grupo pueden eliminarlo' },
+}
 
 async function list(req, res) {
   const { groupId } = req.query
@@ -135,6 +138,11 @@ async function remove(req, res) {
   }
   if (!(await isGroupMember(req.user.id, expense.group_id))) {
     return res.status(403).json(FORBIDDEN)
+  }
+  // Ser miembro no alcanza: borrar un gasto cambia los balances de todo el grupo.
+  const isPayer = String(expense.paid_by) === String(req.user.id)
+  if (!isPayer && !(await isGroupAdmin(req.user.id, expense.group_id))) {
+    return res.status(403).json(DELETE_NOT_ALLOWED)
   }
 
   await db('expenses').where({ id: req.params.id }).del()
