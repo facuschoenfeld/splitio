@@ -89,7 +89,7 @@ export default function DeleteGroupModal() {
             ¿Deseas enviar el resumen del grupo por mail?
           </p>
           <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-            Se enviará un resumen con los gastos y balances a todos los miembros antes de eliminar el grupo.
+            Te enviaremos por email un resumen con los gastos y balances antes de eliminar el grupo.
           </p>
         </div>
         <div className="flex gap-3 pt-2">

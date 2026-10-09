@@ -31,16 +31,18 @@ con dos.
 - Creación de grupos con nombre, descripción y emoji identificatorio.
 - Hasta 10 integrantes por grupo (incluido el creador).
 - El creador es el administrador y es quien puede generar o revocar códigos de invitación.
+- Solo el administrador puede quitar a otros integrantes; el administrador no puede salir del grupo y nadie puede salir con saldo pendiente.
 - Apodo, alias de pago y CBU configurables **por grupo**, además de los globales del perfil.
 
 **Invitaciones**
 - Invitación personal por email, de un solo uso.
-- Código compartible reusable, con expiración y revocación.
+- Código compartible reusable, sin vencimiento y revocable por el administrador.
 - Los invitados que todavía no tienen cuenta quedan registrados como pendientes y se activan al completar el registro.
 
 **Gastos**
 - Alta de gastos con descripción, monto, categoría, fecha y pagador.
 - Reparto entre los integrantes que se elijan, no necesariamente todo el grupo.
+- Eliminación de gastos por quien los pagó o por el administrador del grupo.
 - Registro de saldos de deuda (`settlements`) para marcar pagos ya realizados.
 
 **Balances**
