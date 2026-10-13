@@ -11,7 +11,8 @@ import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 
 const EMOJIS = ['🏠', '✈️', '🔥', '🍕', '🎮', '🏋️', '🎓', '🎉', '🛒', '💼']
-const MAX_NEW = 10
+// Incluye al creador: mismo límite que MAX_GROUP_MEMBERS en el backend.
+const MAX_MEMBERS = 10
 
 export default function CreateGroupModal() {
   const addGroup = useGroupStore((s) => s.addGroup)
@@ -27,9 +28,9 @@ export default function CreateGroupModal() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  const newCount = newMembers.length + inviteEmails.length
-  const totalMembers = selectedMembers.length + newCount
-  const canAddMore = newCount < MAX_NEW
+  // Las invitaciones cuentan aunque todavía no sean miembros: al aceptarlas ocupan un lugar.
+  const totalMembers = selectedMembers.length + newMembers.length + inviteEmails.length
+  const canAddMore = totalMembers < MAX_MEMBERS
 
   const allEmails = [
     ...newMembers.filter((m) => m.email).map((m) => m.email.toLowerCase()),
@@ -38,6 +39,7 @@ export default function CreateGroupModal() {
 
   const toggleMember = (id) => {
     if (id === user?.id) return
+    if (!selectedMembers.includes(id) && !canAddMore) return
     setSelectedMembers((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     )
@@ -60,7 +62,7 @@ export default function CreateGroupModal() {
   }
 
   const handleAutoSelect = (memberId) => {
-    if (!selectedMembers.includes(memberId)) {
+    if (!selectedMembers.includes(memberId) && canAddMore) {
       setSelectedMembers((prev) => [...prev, memberId])
     }
   }
@@ -122,7 +124,10 @@ export default function CreateGroupModal() {
         <Input label="Nombre del grupo" id="group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Departamento" required />
         <Input label="Descripción" id="group-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: Gastos compartidos del depto" />
         <div>
-          <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">Miembros existentes</label>
+          <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+            Miembros existentes
+            <span className="text-surface-400 font-normal ml-2">({totalMembers}/{MAX_MEMBERS}, incluyéndote)</span>
+          </label>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {members.map((member) => (
               <label
@@ -135,7 +140,7 @@ export default function CreateGroupModal() {
                   type="checkbox"
                   checked={selectedMembers.includes(member.id)}
                   onChange={() => toggleMember(member.id)}
-                  disabled={member.id === user?.id}
+                  disabled={member.id === user?.id || (!selectedMembers.includes(member.id) && !canAddMore)}
                   className="rounded border-surface-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm text-surface-700 dark:text-surface-300">
@@ -146,10 +151,7 @@ export default function CreateGroupModal() {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-            Agregar nuevo miembro
-            <span className="text-surface-400 font-normal ml-2">({newCount}/{MAX_NEW})</span>
-          </label>
+          <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">Agregar nuevo miembro</label>
           <MemberInput onAdd={handleAddNewMember} existingEmails={allEmails} disabled={!canAddMore} />
         </div>
         <div>
