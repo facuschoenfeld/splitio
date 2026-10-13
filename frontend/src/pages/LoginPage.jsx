@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -28,6 +29,7 @@ export default function LoginPage() {
         try {
           const { groupId } = await acceptInvitation(invite)
           await useGroupStore.getState().fetchGroups().catch(() => {})
+          toast.success('¡Te uniste al grupo!')
           navigate(`/grupos/${groupId}`)
           return
         } catch {
