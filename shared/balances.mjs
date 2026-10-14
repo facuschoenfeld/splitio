@@ -38,6 +38,10 @@ export function calculateGroupBalances(expenses, members) {
     const base = Math.floor(total / splitBetween.length)
     // Los centavos que no entran en el reparto exacto se asignan de a uno a los
     // primeros miembros del split, en orden: así las partes suman el total.
+    // Limitación conocida: el orden es el que devuelve la base (expense_splits no
+    // tiene columna de orden ni ORDER BY). PostgreSQL devuelve las filas en orden de
+    // inserción, así que en la práctica es estable. No reordenar acá: cambiaría quién
+    // absorbió el centavo en gastos ya cargados y descuadraría grupos ya saldados.
     const remainder = total - base * splitBetween.length
 
     const paidBy = expense.paidBy ?? expense.paid_by

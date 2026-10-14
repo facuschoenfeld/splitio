@@ -307,12 +307,15 @@ erDiagram
     USUARIO ||--o{ INVITACION : "envía"
 ```
 
-Dos detalles de implementación que conviene saber al leer el código:
+Tres detalles de implementación que conviene saber al leer el código:
 
 - Los saldos de deuda se guardan como gastos con `category = 'settlement'`; la
   mayoría de las agregaciones los filtran.
 - El límite de 10 integrantes por grupo vive en `MAX_GROUP_MEMBERS`
   (`backend/src/utils/invitations.js`) y se valida en el backend, no solo en la UI.
+- Cuando un gasto no se divide exacto, los centavos sobrantes van a los primeros participantes
+  en el orden en que la base devuelve `expense_splits` (no hay columna de orden). En la práctica
+  es el orden de inserción; cambiar esa regla alteraría balances de gastos ya cargados.
 
 ---
 
