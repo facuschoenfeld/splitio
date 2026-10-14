@@ -5,7 +5,6 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useInvitationStore } from '@/stores/useInvitationStore'
-import { useGroupStore } from '@/stores/useGroupStore'
 import moneyIcon from '@/assets/money.svg'
 
 export default function RegisterPage() {
@@ -44,7 +43,6 @@ export default function RegisterPage() {
       if (invite) {
         try {
           const { groupId } = await acceptInvitation(invite)
-          await useGroupStore.getState().fetchGroups().catch(() => {})
           toast.success('¡Te uniste al grupo!')
           navigate(`/grupos/${groupId}`)
           return

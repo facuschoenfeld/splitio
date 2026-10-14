@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import Button from '@/components/ui/Button'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useInvitationStore } from '@/stores/useInvitationStore'
-import { useGroupStore } from '@/stores/useGroupStore'
 import moneyIcon from '@/assets/money.svg'
 
 const STATUS_MESSAGES = {
@@ -41,11 +40,6 @@ export default function InvitationPage() {
     setAccepting(true)
     try {
       const { groupId } = await acceptInvitation(token)
-      // Refrescamos para que el grupo ya esté en el store al redirigir.
-      await Promise.all([
-        useGroupStore.getState().fetchGroups().catch(() => {}),
-        useGroupStore.getState().fetchMembers().catch(() => {}),
-      ])
       toast.success('¡Te uniste al grupo!')
       navigate(`/grupos/${groupId}`)
     } catch (err) {
