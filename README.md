@@ -43,7 +43,8 @@ con dos.
 - Alta de gastos con descripción, monto, categoría, fecha y pagador.
 - Reparto entre los integrantes que se elijan, no necesariamente todo el grupo.
 - Eliminación de gastos por quien los pagó o por el administrador del grupo.
-- Registro de saldos de deuda (`settlements`) para marcar pagos ya realizados.
+- Registro de saldos de deuda (`settlements`) para marcar pagos ya realizados, por el deudor, el acreedor
+  o el administrador del grupo, sin superar la deuda pendiente.
 
 **Balances**
 - Balance neto por integrante: cuánto puso de más o de menos.

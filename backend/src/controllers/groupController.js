@@ -332,15 +332,16 @@ async function balances(req, res) {
 }
 
 // Reúne todos los datos del resumen de un grupo (members, gastos con splits,
-// balances y deudas minimizadas). Lo comparten el envío por email y la descarga.
-async function buildGroupSummaryData(groupId) {
-  const members = await fetchGroupMembers(groupId)
+// balances y deudas minimizadas). Lo comparten el envío por email, la descarga y
+// el control de saldar deuda (expenseController), que lo llama dentro de su transacción.
+async function buildGroupSummaryData(groupId, { trx = db } = {}) {
+  const members = await fetchGroupMembers(groupId, { trx })
 
-  const expenses = await db('expenses').where({ group_id: groupId }).orderBy('date', 'desc')
+  const expenses = await trx('expenses').where({ group_id: groupId }).orderBy('date', 'desc')
   const expenseIds = expenses.map((e) => e.id)
 
   const splits = expenseIds.length
-    ? await db('expense_splits').whereIn('expense_id', expenseIds)
+    ? await trx('expense_splits').whereIn('expense_id', expenseIds)
     : []
 
   const splitsByExpense = {}
@@ -583,4 +584,5 @@ module.exports = {
   getInviteCode,
   generateInviteCode,
   revokeInviteCode,
+  buildGroupSummaryData,
 }

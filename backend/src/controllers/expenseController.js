@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator')
 const db = require('../config/db')
 const { isGroupMember, areGroupMembers, isGroupAdmin } = require('../utils/authorization')
+const { buildGroupSummaryData } = require('./groupController')
 
 const FORBIDDEN = { error: { message: 'No tenés acceso a este recurso' } }
 const PARTICIPANTS_NOT_MEMBERS = {
@@ -8,6 +9,15 @@ const PARTICIPANTS_NOT_MEMBERS = {
 }
 const SETTLE_NOT_MEMBERS = { error: { message: 'El deudor y el acreedor deben ser miembros del grupo' } }
 const SETTLE_SAME_USER = { error: { message: 'El deudor y el acreedor deben ser personas distintas' } }
+const SETTLE_NOT_ALLOWED = {
+  error: { message: 'Solo el deudor, el acreedor o el administrador del grupo pueden saldar esta deuda' },
+}
+const SETTLE_NO_DEBT = { error: { message: 'No hay una deuda pendiente entre esas personas' } }
+
+const sameId = (a, b) => String(a).toLowerCase() === String(b).toLowerCase()
+const toCents = (value) => Math.round(Number(value) * 100)
+const formatPesos = (value) =>
+  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const DELETE_NOT_ALLOWED = {
   error: { message: 'Solo quien pagó el gasto o el administrador del grupo pueden eliminarlo' },
 }
@@ -160,14 +170,37 @@ async function settle(req, res) {
   if (!(await isGroupMember(req.user.id, groupId))) {
     return res.status(403).json(FORBIDDEN)
   }
-  if (fromUserId.toLowerCase() === toUserId.toLowerCase()) {
+  if (sameId(fromUserId, toUserId)) {
     return res.status(400).json(SETTLE_SAME_USER)
   }
   if (!(await areGroupMembers([fromUserId, toUserId], groupId))) {
     return res.status(400).json(SETTLE_NOT_MEMBERS)
   }
+  // Solo el deudor, el acreedor o el administrador; el administrador cubre a los
+  // miembros sin cuenta, que no pueden iniciar sesión para saldar sus deudas.
+  const isParticipant = [fromUserId, toUserId].some((id) => sameId(id, req.user.id))
+  if (!isParticipant && !(await isGroupAdmin(req.user.id, groupId))) {
+    return res.status(403).json(SETTLE_NOT_ALLOWED)
+  }
 
-  const expense = await db.transaction(async (trx) => {
+  const result = await db.transaction(async (trx) => {
+    // Bloquea el grupo: dos pagos simultáneos no pueden saldar la misma deuda dos veces.
+    await trx('groups').where({ id: groupId }).forUpdate().first()
+
+    // El pago tiene que corresponder a una deuda pendiente y no superarla: si no,
+    // la deuda se invertiría (el acreedor pasaría a deber).
+    const { debts } = await buildGroupSummaryData(groupId, { trx })
+    const debt = debts.find((d) => sameId(d.from.id, fromUserId) && sameId(d.to.id, toUserId))
+    if (!debt) {
+      return { status: 409, body: SETTLE_NO_DEBT }
+    }
+    if (toCents(amount) > toCents(debt.amount)) {
+      return {
+        status: 400,
+        body: { error: { message: `El monto supera la deuda pendiente de ${formatPesos(debt.amount)}` } },
+      }
+    }
+
     const [created] = await trx('expenses')
       .insert({
         group_id: groupId,
@@ -181,8 +214,13 @@ async function settle(req, res) {
 
     await trx('expense_splits').insert({ expense_id: created.id, user_id: toUserId })
 
-    return created
+    return { expense: created }
   })
+
+  if (!result.expense) {
+    return res.status(result.status).json(result.body)
+  }
+  const { expense } = result
 
   res.status(201).json({
     id: expense.id,

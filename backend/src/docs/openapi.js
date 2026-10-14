@@ -1088,7 +1088,10 @@ const openapi = {
         summary: 'Registrar una liquidación de deuda',
         description:
           'Se almacena como un gasto con `category: "settlement"` y descripción "Saldo de deuda", ' +
-          'pagado por el deudor (`paidBy = fromUserId`) y dividido solo con el acreedor (`splitBetween = [toUserId]`).',
+          'pagado por el deudor (`paidBy = fromUserId`) y dividido solo con el acreedor (`splitBetween = [toUserId]`). ' +
+          'Solo puede registrarlo el deudor, el acreedor o el administrador del grupo. Tiene que existir una deuda ' +
+          'pendiente de `fromUserId` a `toUserId` (de las calculadas en `GET /groups/{id}/balances`) y el monto no ' +
+          'puede superarla; se admiten pagos parciales.',
         security: bearerAuth,
         requestBody: {
           required: true,
@@ -1111,16 +1114,33 @@ const openapi = {
           201: jsonResponse('Liquidación registrada', ref('Expense')),
           400: {
             description:
-              'Datos inválidos, deudor y acreedor iguales, o alguno de los dos no es miembro del grupo',
+              'Datos inválidos, deudor y acreedor iguales, alguno de los dos no es miembro del grupo, ' +
+              'o el monto supera la deuda pendiente',
             content: {
               'application/json': {
                 schema: { oneOf: [ref('ValidationError'), ref('Error')] },
-                example: { error: { message: 'El deudor y el acreedor deben ser miembros del grupo' } },
+                example: { error: { message: 'El monto supera la deuda pendiente de $33,34' } },
               },
             },
           },
           401: unauthorizedResponse,
-          403: forbiddenExpenseResponse,
+          403: {
+            description: 'No es miembro del grupo, o no es el deudor, el acreedor ni el administrador',
+            content: {
+              'application/json': {
+                schema: ref('Error'),
+                example: {
+                  error: {
+                    message: 'Solo el deudor, el acreedor o el administrador del grupo pueden saldar esta deuda',
+                  },
+                },
+              },
+            },
+          },
+          409: errorResponse(
+            'No hay una deuda pendiente del deudor al acreedor',
+            'No hay una deuda pendiente entre esas personas'
+          ),
         },
       },
     },

@@ -4,6 +4,8 @@ import Avatar from '@/components/ui/Avatar'
 import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { useUIStore } from '@/stores/useUIStore'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { useGroupStore } from '@/stores/useGroupStore'
 
 function CopyAliasButton({ alias, name }) {
   const [copied, setCopied] = useState(false)
@@ -40,6 +42,12 @@ function CopyAliasButton({ alias, name }) {
 
 export default function BalanceCard({ debt, groupId }) {
   const openModal = useUIStore((s) => s.openModal)
+  const user = useAuthStore((s) => s.user)
+  const group = useGroupStore((s) => s.groups.find((g) => g.id === groupId))
+  // Misma regla que el backend: solo el deudor, el acreedor o el administrador del grupo.
+  const canSettle =
+    [debt.from.id, debt.to.id].includes(user?.id) ||
+    (group && String(group.created_by) === String(user?.id))
 
   return (
     <div className="flex items-center gap-3 p-4">
@@ -56,13 +64,15 @@ export default function BalanceCard({ debt, groupId }) {
         {debt.to.payment_alias && (
           <CopyAliasButton alias={debt.to.payment_alias} name={debt.to.name} />
         )}
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => openModal('settleDebt', { ...debt, groupId })}
-        >
-          Saldar
-        </Button>
+        {canSettle && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => openModal('settleDebt', { ...debt, groupId })}
+          >
+            Saldar
+          </Button>
+        )}
       </div>
     </div>
   )

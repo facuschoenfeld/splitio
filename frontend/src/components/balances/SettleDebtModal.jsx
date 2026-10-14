@@ -26,9 +26,12 @@ export default function SettleDebtModal() {
       setLoading(false)
       closeModal()
       toast.success('Deuda saldada', { description: `${debt.from.name} pagó ${formatCurrency(debt.amount)} a ${debt.to.name}` })
-    } catch {
+    } catch (err) {
       setLoading(false)
-      toast.error('Error al saldar la deuda')
+      closeModal()
+      toast.error('Error al saldar la deuda', { description: err.message })
+      // Si la deuda cambió (p. ej., otro la saldó), refrescamos para mostrar la actual.
+      useExpenseStore.getState().fetchExpenses().catch(() => {})
     }
   }
 
