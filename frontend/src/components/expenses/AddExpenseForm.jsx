@@ -8,6 +8,7 @@ import { useGroupStore } from '@/stores/useGroupStore'
 import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { CATEGORIES } from '@/data/mockData'
+import { formatCurrency } from '@/utils/formatCurrency'
 
 export default function AddExpenseForm() {
   const addExpense = useExpenseStore((s) => s.addExpense)
@@ -71,7 +72,7 @@ export default function AddExpenseForm() {
         date,
       })
       closeModal()
-      toast.success('Gasto agregado', { description: `"${description.trim()}" por $${parseFloat(amount).toFixed(2)}` })
+      toast.success('Gasto agregado', { description: `"${description.trim()}" por ${formatCurrency(parseFloat(amount))}` })
     } catch (err) {
       toast.error(err.message || 'Error al agregar el gasto')
     } finally {

@@ -125,7 +125,7 @@ async function sendPasswordReset({ to, name, resetUrl }) {
   }
 }
 
-async function sendGroupSummary({ to, groupName, groupEmoji, pdfBuffer }) {
+async function sendGroupSummary({ to, groupName, groupEmoji, pdfBuffer, filename }) {
   const client = getClient()
   if (!client) {
     console.warn('RESEND_API_KEY not configured — skipping summary email')
@@ -155,7 +155,7 @@ async function sendGroupSummary({ to, groupName, groupEmoji, pdfBuffer }) {
       </div>
     `,
     attachments: [{
-      filename: `resumen-${groupName.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/\s+/g, '-')}.pdf`,
+      filename,
       content: pdfBuffer,
     }],
   })

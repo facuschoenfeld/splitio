@@ -1,7 +1,7 @@
 const { validationResult } = require('express-validator')
 const db = require('../config/db')
 const { sendBatchGroupInvites, sendGroupSummary } = require('../services/emailService')
-const { generateGroupSummaryPDF } = require('../services/pdfService')
+const { generateGroupSummaryPDF, summaryFilename } = require('../services/pdfService')
 const { isGroupMember, isGroupAdmin } = require('../utils/authorization')
 const { generatePlaceholderEmail } = require('../utils/placeholderEmail')
 const { fetchGroupMembers } = require('../utils/groupMembers')
@@ -399,6 +399,7 @@ async function sendSummary(req, res) {
     groupName: group.name,
     groupEmoji: group.emoji,
     pdfBuffer,
+    filename: summaryFilename(group.name),
   })
 
   res.json({ message: 'Resumen enviado', sentTo: 1 })
@@ -425,13 +426,7 @@ async function downloadSummary(req, res) {
     debts,
   })
 
-  const slug = (group.name || 'grupo')
-    .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '') // saca acentos
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'grupo'
-  const fecha = new Date().toISOString().slice(0, 10)
-  const filename = `resumen-${slug}-${fecha}.pdf`
+  const filename = summaryFilename(group.name)
 
   res.setHeader('Content-Type', 'application/pdf')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)

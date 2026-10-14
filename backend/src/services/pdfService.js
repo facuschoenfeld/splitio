@@ -151,9 +151,9 @@ function drawExpensesTable(doc, expenses, memberMap) {
 
   const cols = [
     { label: 'Fecha', x: PAGE_LEFT, w: 70, align: 'center' },
-    { label: 'Descripcion', x: PAGE_LEFT + 70, w: 175, align: 'left' },
-    { label: 'Categoria', x: PAGE_LEFT + 245, w: 75, align: 'center' },
-    { label: 'Pago', x: PAGE_LEFT + 320, w: 90, align: 'left' },
+    { label: 'Descripción', x: PAGE_LEFT + 70, w: 175, align: 'left' },
+    { label: 'Categoría', x: PAGE_LEFT + 245, w: 75, align: 'center' },
+    { label: 'Pagó', x: PAGE_LEFT + 320, w: 90, align: 'left' },
     { label: 'Monto', x: PAGE_LEFT + 410, w: PAGE_WIDTH - 410, align: 'right' },
   ]
   const rowH = 22
@@ -307,4 +307,16 @@ function checkPageBreak(doc, needed) {
   }
 }
 
-module.exports = { generateGroupSummaryPDF }
+// Nombre del archivo del resumen, el mismo para la descarga y el adjunto del email:
+// resumen-<grupo sin acentos ni símbolos>-<AAAA-MM-DD>.pdf
+function summaryFilename(groupName) {
+  const slug = (groupName || 'grupo')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // saca acentos
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'grupo'
+  const fecha = new Date().toISOString().slice(0, 10)
+  return `resumen-${slug}-${fecha}.pdf`
+}
+
+module.exports = { generateGroupSummaryPDF, summaryFilename }

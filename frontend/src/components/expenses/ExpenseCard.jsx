@@ -18,7 +18,15 @@ export default function ExpenseCard({ expense, members }) {
   const payer = resolvedMembers.find((m) => m.id === expense.paidBy)
   const category = CATEGORIES[expense.category] || CATEGORIES.otros
   const isCurrentUserPayer = expense.paidBy === user?.id
-  const splitAmount = expense.splitBetween?.length ? expense.amount / expense.splitBetween.length : expense.amount
+  // Parte por persona en centavos, como en shared/balances.mjs: si el total no se divide
+  // exacto, algunos pagan un centavo más y se muestra el rango (p. ej. $33,33–$33,34).
+  const splitCount = expense.splitBetween?.length || 1
+  const totalCents = Math.round(Number(expense.amount) * 100)
+  const baseShare = Math.floor(totalCents / splitCount) / 100
+  const splitLabel =
+    totalCents % splitCount === 0
+      ? formatCurrency(baseShare)
+      : `${formatCurrency(baseShare)}–${formatCurrency(baseShare + 0.01)}`
   // Misma regla que el backend: solo quien pagó o el administrador del grupo.
   const canDelete = isCurrentUserPayer || (group && String(group.created_by) === String(user?.id))
 
@@ -40,7 +48,7 @@ export default function ExpenseCard({ expense, members }) {
       <div className="text-right shrink-0">
         <p className="text-sm font-bold text-surface-900 dark:text-white">{formatCurrency(expense.amount)}</p>
         <p className="text-xs text-surface-500 dark:text-surface-400">
-          {formatCurrency(splitAmount)}/persona
+          {splitLabel}/persona
         </p>
       </div>
       {canDelete && (
