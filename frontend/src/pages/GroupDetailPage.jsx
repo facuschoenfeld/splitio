@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import Card, { CardHeader, CardBody } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Avatar from '@/components/ui/Avatar'
+import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import ExpenseCard from '@/components/expenses/ExpenseCard'
 import BalanceCard from '@/components/balances/BalanceCard'
@@ -275,7 +276,7 @@ export default function GroupDetailPage() {
             ) : (
               <div className="divide-y divide-surface-100 dark:divide-primary-700/15">
                 {sortedExpenses.map((expense) => (
-                  <ExpenseCard key={expense.id} expense={expense} members={members} />
+                  <ExpenseCard key={expense.id} expense={expense} members={members} allowDelete />
                 ))}
               </div>
             )}
@@ -319,7 +320,14 @@ export default function GroupDetailPage() {
                     <li key={member.id} className="flex items-center gap-3 px-5 py-3">
                       <Avatar name={member.name} src={member.avatar} size="sm" />
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-surface-700 dark:text-surface-300">{member.name}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-surface-700 dark:text-surface-300 truncate">{member.name}</span>
+                          {String(member.id) === String(group?.created_by) && (
+                            <Badge className="shrink-0 bg-success-50 text-success-700 ring-1 ring-inset ring-success-600/20 dark:bg-success-500/15 dark:text-success-500 dark:ring-success-500/25">
+                              Admin
+                            </Badge>
+                          )}
+                        </div>
                         {(member.payment_alias || member.cbu) && (
                           <p className="text-xs text-surface-400 dark:text-surface-500 truncate">
                             {member.payment_alias || member.cbu}

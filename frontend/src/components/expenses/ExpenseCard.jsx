@@ -7,7 +7,8 @@ import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/dateFormat'
 import { CATEGORIES } from '@/data/mockData'
 
-export default function ExpenseCard({ expense, members }) {
+// `allowDelete` solo lo activa el detalle del grupo: en /gastos los gastos se ven pero no se eliminan.
+export default function ExpenseCard({ expense, members, allowDelete = false }) {
   const globalMembers = useGroupStore((s) => s.members)
   const user = useAuthStore((s) => s.user)
   const group = useGroupStore((s) => s.groups.find((g) => g.id === expense.groupId))
@@ -28,7 +29,8 @@ export default function ExpenseCard({ expense, members }) {
       ? formatCurrency(baseShare)
       : `${formatCurrency(baseShare)}–${formatCurrency(baseShare + 0.01)}`
   // Misma regla que el backend: solo quien pagó o el administrador del grupo.
-  const canDelete = isCurrentUserPayer || (group && String(group.created_by) === String(user?.id))
+  const canDelete =
+    allowDelete && (isCurrentUserPayer || (group && String(group.created_by) === String(user?.id)))
 
   return (
     <div className="group flex items-center gap-3 px-4 py-3">
