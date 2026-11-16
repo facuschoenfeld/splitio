@@ -78,6 +78,7 @@ const openapi = {
     { url: 'http://localhost:3001/api', description: 'Desarrollo local' },
   ],
   tags: [
+    { name: 'Health', description: 'Estado del servidor' },
     { name: 'Auth', description: 'Registro, login y recuperación de contraseña' },
     { name: 'Users', description: 'Perfil de usuario y avatares' },
     { name: 'Groups', description: 'Grupos, miembros, balances e invitaciones' },
@@ -131,7 +132,12 @@ const openapi = {
             example: 'juan@example.com',
             description: 'null para miembros agregados sin email',
           },
-          avatar: { type: 'string', nullable: true, example: '/uploads/avatars/abc.png' },
+          avatar: {
+            type: 'string',
+            nullable: true,
+            description: 'URL relativa a la API (ver `GET /users/{id}/avatar`)',
+            example: '/api/users/3f6c1e2a-8b1d-4c2e-9a7f-1b2c3d4e5f60/avatar?v=1731700000000',
+          },
           payment_alias: { type: 'string', nullable: true, example: 'juan.mp' },
           cbu: { type: 'string', nullable: true, example: '0000003100010000000001' },
           notify_group_invites: { type: 'boolean', example: true },
@@ -352,6 +358,29 @@ const openapi = {
     },
   },
   paths: {
+    // ---------- Health ----------
+    '/health': {
+      get: {
+        tags: ['Health'],
+        summary: 'Health check',
+        description: 'Verifica que el servidor responda y que la base de datos esté accesible.',
+        responses: {
+          200: jsonResponse('Servidor y base OK', {
+            type: 'object',
+            properties: { status: { type: 'string', example: 'ok' } },
+          }),
+          503: {
+            description: 'La base de datos no responde',
+            content: {
+              'application/json': {
+                example: { status: 'error', error: { message: 'Base de datos no disponible' } },
+              },
+            },
+          },
+        },
+      },
+    },
+
     // ---------- Auth ----------
     '/auth/register': {
       post: {
@@ -583,6 +612,27 @@ const openapi = {
         responses: {
           200: jsonResponse('Perfil sin avatar', ref('User')),
           401: unauthorizedResponse,
+        },
+      },
+    },
+    '/users/{id}/avatar': {
+      get: {
+        tags: ['Users'],
+        summary: 'Obtener la imagen del avatar de un usuario',
+        description:
+          'Público (sin token): lo pide un `<img>`. Devuelve los bytes guardados en la base ' +
+          'con su Content-Type y `Cache-Control: public, max-age=86400`.',
+        parameters: [userIdPathParam],
+        responses: {
+          200: {
+            description: 'Imagen del avatar',
+            content: {
+              'image/png': { schema: { type: 'string', format: 'binary' } },
+              'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+              'image/webp': { schema: { type: 'string', format: 'binary' } },
+            },
+          },
+          404: errorResponse('El usuario no tiene avatar', 'Avatar no encontrado'),
         },
       },
     },

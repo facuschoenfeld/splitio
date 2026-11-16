@@ -21,6 +21,7 @@ con dos.
 - [API](#api)
 - [Modelo de datos](#modelo-de-datos)
 - [Rutas del frontend](#rutas-del-frontend)
+- [Deploy (Render + Neon)](#deploy-render--neon)
 - [Licencia](#licencia)
 
 ---
@@ -76,7 +77,7 @@ con dos.
 ```
 split_expenses/
 ├── backend/
-│   ├── migrations/       # Migraciones Knex (001 a 013)
+│   ├── migrations/       # Migraciones Knex (001 a 014)
 │   ├── seeds/            # Datos de ejemplo
 │   ├── src/
 │   │   ├── config/       # Instancia de Knex
@@ -97,8 +98,9 @@ split_expenses/
 │       ├── router/
 │       ├── stores/       # Estado global con Zustand
 │       └── utils/        # Formato de moneda y fechas, agrupaciones, helpers
-└── shared/               # Código compartido por frontend y backend
-    └── balances.mjs      # Cálculo de balances y deudas (fuente única)
+├── shared/               # Código compartido por frontend y backend
+│   └── balances.mjs      # Cálculo de balances y deudas (fuente única)
+└── render.yaml           # Blueprint de Render (deploy)
 ```
 
 Arquitectura del backend en capas: `routes → validators → controllers → knex`.
@@ -112,7 +114,8 @@ API y el PDF muestran siempre los mismos números.
 
 ## Requisitos
 
-- **Node.js 20+** (Vite 8 requiere 20.19+ o 22.12+)
+- **Node.js 22.12+** (Vite 8 y el `require()` de ESM de `shared/balances.mjs` lo necesitan;
+  20.19+ también funciona, pero `engines` declara 22.12+)
 - **PostgreSQL 13+**
 - Una cuenta de [Resend](https://resend.com) si querés que se envíen los emails
   (opcional: sin la API key la app funciona igual y omite el envío).
@@ -175,14 +178,16 @@ cd backend && npm run dev     # API en http://localhost:3001
 cd frontend && npm run dev    # App en http://localhost:5173
 ```
 
-El dev server de Vite proxea `/api` y `/uploads` al backend, así que no hace
-falta configurar nada más para desarrollo local.
+El dev server de Vite proxea `/api` al backend, así que no hace falta
+configurar nada más para desarrollo local.
 
 ---
 
 ## Variables de entorno
 
-Todas se leen en `backend/.env`. El frontend no necesita ninguna.
+Las del backend se leen en `backend/.env`. El frontend tiene una sola, `VITE_API_URL`
+(ver `frontend/.env.example`): vacía en desarrollo, y en producción el origen del
+backend (ej. `https://splitio-api.onrender.com`). Se embebe al buildear.
 
 | Variable | Requerida | Default | Descripción |
 |---|---|---|---|
@@ -196,7 +201,8 @@ Todas se leen en `backend/.env`. El frontend no necesita ninguna.
 | `DATABASE_URL` | solo producción | — | String de conexión completo; tiene prioridad sobre las `DB_*` cuando `NODE_ENV=production` |
 | `NODE_ENV` | no | `development` | Selecciona la configuración de `knexfile.js` |
 | `PORT` | no | `3001` | Puerto del backend |
-| `CORS_ORIGIN` | no | `FRONTEND_URL`, o `http://localhost:5173` | Origen permitido por CORS |
+| `CORS_ORIGIN` | no | `FRONTEND_URL`, o `http://localhost:5173` | Origen(es) permitido(s) por CORS, separados por coma |
+| `TRUST_PROXY` | no | `1` | Saltos de proxy confiables para leer la IP real (rate limit). `0` ignora `X-Forwarded-For` |
 | `FRONTEND_URL` | no | `http://localhost:5173` | Base de los enlaces que se envían por email |
 | `RESEND_API_KEY` | no | — | Sin ella, los envíos se omiten con un warning en consola y el resto de la app funciona |
 | `EMAIL_FROM` | no | `Splitio <onboarding@resend.dev>` | Remitente de los emails |
@@ -236,6 +242,8 @@ Base: `/api`. Todos los endpoints requieren el header
 
 Con el backend levantado, la documentación interactiva queda en
 **http://localhost:3001/api/docs** y el spec crudo en `/api/docs.json`.
+`GET /api/health` (público) responde `{ "status": "ok" }` si el servidor y la base
+están accesibles.
 
 ### Autenticación — `/api/auth` (público, límite de 10 req / 15 min)
 
@@ -254,8 +262,9 @@ Con el backend levantado, la documentación interactiva queda en
 | `GET` | `/` | Usuarios con los que compartís algún grupo |
 | `GET` | `/me` | Perfil propio |
 | `PUT` | `/me` | Actualizar el perfil propio |
-| `POST` | `/me/avatar` | Subir avatar |
+| `POST` | `/me/avatar` | Subir avatar (se guarda en la base, tabla `user_avatars`) |
 | `DELETE` | `/me/avatar` | Eliminar avatar |
+| `GET` | `/:id/avatar` | Imagen del avatar (**público**, lo pide un `<img>`) |
 | `GET` | `/:id` | Ver un usuario |
 | `PUT` | `/:id` | Actualizar un usuario |
 
@@ -294,7 +303,8 @@ Con el backend levantado, la documentación interactiva queda en
 
 ## Modelo de datos
 
-Seis tablas en PostgreSQL con claves primarias UUID.
+Siete tablas en PostgreSQL con claves primarias UUID (la séptima, `user_avatars`, guarda
+la imagen de perfil de cada usuario y no figura en el diagrama).
 
 ```mermaid
 erDiagram
@@ -334,6 +344,69 @@ Tres detalles de implementación que conviene saber al leer el código:
 | `/gastos` | privado | Listado de gastos |
 | `/balances` | privado | Balances y deudas |
 | `/perfil` | privado | Perfil y preferencias |
+
+---
+
+## Deploy (Render + Neon)
+
+Entorno de testing con planes gratuitos: **Render** para el frontend (Static Site) y el
+backend (Web Service free), **Neon** para PostgreSQL y **Resend** para los emails. Todo
+está descripto en `render.yaml` (Blueprint).
+
+| Servicio | Plan free | Lo que implica |
+|---|---|---|
+| Render Web Service (API) | 512 MB, 0.1 CPU, 750 h/mes | Se duerme tras 15 min sin tráfico; el primer request tarda ~1 min. Disco efímero (por eso los avatares van a la base). |
+| Render Static Site (front) | CDN, no se duerme | 5 GB/mes de transferencia en el plan Hobby. |
+| Neon | 1 GB, 100 CU-h/mes | Se suspende tras 5 min sin uso y despierta en el siguiente query. |
+| Resend | 100 mails/día, 3000/mes | Con `onboarding@resend.dev` solo llegan a tu propia dirección: hace falta un dominio verificado. |
+
+### 1. Base de datos en Neon
+
+1. Crear un proyecto en [neon.com](https://neon.com), región **AWS US East (N. Virginia)**
+   (la misma zona que el backend en Render).
+2. En *Connect*, copiar la connection string **directa** (desactivar *Connection pooling*,
+   el host no debe tener `-pooler`). Termina en `?sslmode=require`; si incluye
+   `&channel_binding=require` se puede dejar.
+
+### 2. Dominio para los emails (Resend)
+
+1. Comprar un dominio (ej. `.com.ar` en NIC Argentina, o `.com` en Cloudflare Registrar /
+   Porkbun) y gestionar su DNS en Cloudflare (gratis).
+2. En Resend → *Domains* → *Add domain*: usar un subdominio, ej. `mail.tudominio.com`.
+3. Cargar en Cloudflare los registros que muestra Resend (MX y TXT de SPF, TXT de DKIM;
+   DMARC opcional) con el proxy de Cloudflare **apagado** (nube gris) → *Verify*.
+4. Crear una API key en Resend (*Sending access*).
+5. `EMAIL_FROM` pasa a ser `Splitio <no-reply@mail.tudominio.com>`.
+
+### 3. Servicios en Render
+
+1. Render → *New* → *Blueprint* → elegir este repositorio. Detecta `render.yaml` y crea
+   `splitio-api` y `splitio-web`. `JWT_SECRET` y `JWT_REFRESH_SECRET` se generan solos.
+2. Completar las variables que pide:
+   - `DATABASE_URL`: la de Neon.
+   - `RESEND_API_KEY` y `EMAIL_FROM`.
+   - `CORS_ORIGIN`, `FRONTEND_URL` y `VITE_API_URL`: si todavía no conocés las URLs, poné
+     `https://splitio-web.onrender.com` y `https://splitio-api.onrender.com` (Render usa el
+     nombre del servicio, con un sufijo si ya está tomado) y corregilas después.
+3. El build del backend corre `npm run migrate` contra Neon (el plan free no tiene
+   pre-deploy command). **No** corras `npm run seed` en producción: son datos de ejemplo.
+4. Cuando ambos estén *Live*, verificar las URLs reales. Si alguna cambió, actualizar
+   `VITE_API_URL` en `splitio-web` (requiere un nuevo deploy: se embebe en el build) y
+   `CORS_ORIGIN`/`FRONTEND_URL` en `splitio-api`.
+5. Opcional: dominios propios en Render (*Settings → Custom Domains*), ej. `app.` para el
+   front y `api.` para la API, con CNAME en Cloudflare. Después actualizar las tres
+   variables anteriores. `CORS_ORIGIN` acepta varios orígenes separados por coma.
+
+### 4. Verificar
+
+- `https://<api>/api/health` → `{ "status": "ok" }` y `https://<api>/api/docs` carga.
+- En el front: registro, login, recargar la página en `/grupos/:id` (rewrite de la SPA),
+  crear grupo y gasto, saldar una deuda, subir un avatar, invitación por email y por
+  código, recupero de contraseña y resumen en PDF.
+
+Para evitar el cold start se puede programar un ping a `/api/health` cada 14 min
+(ej. [cron-job.org](https://cron-job.org)): un servicio despierto 24/7 usa ~720 h, dentro
+de las 750 h gratis, pero mantiene la base de Neon activa y consume sus CU-h.
 
 ---
 

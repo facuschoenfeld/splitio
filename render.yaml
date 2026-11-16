@@ -1,0 +1,60 @@
+# Blueprint de Render: frontend (Static Site) + backend (Web Service free).
+# La base de datos es externa (Neon); su connection string va en DATABASE_URL.
+# Las variables con `sync: false` se completan en el dashboard al crear el
+# Blueprint (Render las pide) y no se guardan en el repo.
+# Guía paso a paso: README.md → "Deploy (Render + Neon)".
+
+services:
+  # ---------- Backend: API Express ----------
+  - type: web
+    name: splitio-api
+    runtime: node
+    plan: free
+    region: virginia # misma zona que Neon AWS us-east-1
+    rootDir: backend
+    # El plan free no tiene pre-deploy command: las migraciones corren en el build.
+    buildCommand: npm ci && npm run migrate
+    startCommand: npm start
+    healthCheckPath: /api/health
+    buildFilter:
+      paths:
+        - backend/**
+        - shared/**
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: DATABASE_URL # connection string directa de Neon (sin -pooler)
+        sync: false
+      - key: CORS_ORIGIN # URL del frontend, ej. https://splitio-web.onrender.com
+        sync: false
+      - key: FRONTEND_URL # base de los links de los emails (misma URL del frontend)
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM # ej. Splitio <no-reply@mail.tudominio.com>
+        sync: false
+
+  # ---------- Frontend: SPA de Vite ----------
+  - type: web
+    name: splitio-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    buildFilter:
+      paths:
+        - frontend/**
+        - shared/**
+    # SPA: cualquier ruta (/grupos/:id, /invitacion/:token, /reset-password...)
+    # sirve index.html y React Router resuelve en el cliente.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL # URL del backend, ej. https://splitio-api.onrender.com
+        sync: false

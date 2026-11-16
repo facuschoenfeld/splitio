@@ -27,11 +27,6 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-      // Avatares servidos estáticos por el backend.
-      '/uploads': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
     },
   },
 })

@@ -1,8 +1,8 @@
 require('dotenv').config()
-const path = require('path')
 const express = require('express')
 const cors = require('cors')
 const swaggerUi = require('swagger-ui-express')
+const db = require('./config/db')
 const errorHandler = require('./middleware/errorHandler')
 const openapiSpec = require('./docs/openapi')
 
@@ -14,12 +14,31 @@ const invitationRoutes = require('./routes/invitations')
 
 const app = express()
 
-const corsOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173'
+// Detrás del proxy de Render (u otro), req.ip sería la IP del proxy y todos los
+// clientes compartirían el límite de express-rate-limit. TRUST_PROXY es la
+// cantidad de saltos de proxy en los que se confía (0 = ninguno, ej: en local).
+app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 1))
+
+// CORS_ORIGIN admite varios orígenes separados por coma
+// (ej: https://splitio.onrender.com,https://app.midominio.com).
+const corsOrigin = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 app.use(cors({ origin: corsOrigin }))
 app.use(express.json())
 
-// Avatares subidos por los usuarios (ver middleware/avatarUpload.js).
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
+// Health check (lo usa Render para saber si el deploy quedó sano). Toca la base
+// para detectar también una DB caída o mal configurada.
+app.get('/api/health', async (req, res) => {
+  try {
+    await db.raw('select 1')
+    res.json({ status: 'ok' })
+  } catch (err) {
+    console.error('Health check: la base no responde:', err.message)
+    res.status(503).json({ status: 'error', error: { message: 'Base de datos no disponible' } })
+  }
+})
 
 // Documentación interactiva de la API (Swagger UI) y el spec OpenAPI crudo.
 app.get('/api/docs.json', (req, res) => res.json(openapiSpec))
@@ -37,5 +56,5 @@ app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`)
+  console.log(`Server running on port ${PORT}`)
 })

@@ -9,9 +9,13 @@ const {
   updateById,
   updateMyAvatar,
   deleteMyAvatar,
+  getAvatar,
 } = require('../controllers/userController')
 
 const router = Router()
+
+// Antes de router.use(auth): la imagen la pide un <img>, que no manda el token.
+router.get('/:id/avatar', getAvatar)
 
 router.use(auth)
 router.get('/', list)

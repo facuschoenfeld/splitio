@@ -1,4 +1,14 @@
-const BASE_URL = '/api'
+// Origen del backend. Vacío en desarrollo (el proxy de Vite reenvía /api); en
+// producción el front y la API viven en dominios distintos (ver .env.example).
+const API_ORIGIN = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
+const BASE_URL = `${API_ORIGIN}/api`
+
+// Convierte una ruta del backend (ej: el avatar "/api/users/:id/avatar") en una
+// URL utilizable desde el front. Deja intactas las URLs absolutas y los data:.
+export function assetUrl(path) {
+  if (!path || !path.startsWith('/')) return path
+  return `${API_ORIGIN}${path}`
+}
 
 let accessToken = localStorage.getItem('accessToken')
 let refreshToken = localStorage.getItem('refreshToken')

@@ -26,7 +26,10 @@ module.exports = {
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
     },
-    pool: { min: 2, max: 10 },
+    // min: 0 + idleTimeout: no retener conexiones ociosas. Neon suspende la base
+    // tras unos minutos sin uso y corta las conexiones abiertas; así el pool no se
+    // queda con conexiones muertas y la base puede escalar a cero.
+    pool: { min: 0, max: 10, idleTimeoutMillis: 30000 },
     migrations: {
       directory: './migrations',
     },

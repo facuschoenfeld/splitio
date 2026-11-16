@@ -1,8 +1,7 @@
-const path = require('path')
-const fs = require('fs')
 const db = require('../config/db')
 const { sanitizeUserEmail } = require('../utils/placeholderEmail')
-const { AVATARS_DIR } = require('../middleware/avatarUpload')
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const SELECT_FIELDS = [
   'id',
@@ -15,14 +14,6 @@ const SELECT_FIELDS = [
   'notify_group_summaries',
   'created_at',
 ]
-
-// Borra el archivo de avatar previo si era uno subido a /uploads (no toca
-// avatares externos ni iniciales/null). Silencioso: si no existe, no falla.
-function removeAvatarFile(avatar) {
-  if (!avatar || !avatar.startsWith('/uploads/avatars/')) return
-  const file = path.join(AVATARS_DIR, path.basename(avatar))
-  fs.promises.unlink(file).catch(() => {})
-}
 
 // Toma del body solo los campos editables del perfil. Se reusa en updateMe y
 // updateById para no duplicar la lista de campos permitidos.
@@ -98,25 +89,66 @@ async function updateById(req, res) {
   res.json(updated)
 }
 
+// Los bytes del avatar viven en user_avatars (migración 014); users.avatar guarda
+// la URL pública que consume el front. El ?v= cambia en cada subida para que el
+// browser no muestre la imagen anterior cacheada.
 async function updateMyAvatar(req, res) {
   if (!req.file) {
     return res.status(400).json({ error: { message: 'No se recibió ninguna imagen' } })
   }
-  const current = await db('users').where({ id: req.user.id }).select('avatar').first()
-  removeAvatarFile(current?.avatar)
+  const userId = req.user.id
+  const avatar = `/api/users/${userId}/avatar?v=${Date.now()}`
 
-  const avatar = `/uploads/avatars/${req.file.filename}`
-  await db('users').where({ id: req.user.id }).update({ avatar })
-  const user = await db('users').where({ id: req.user.id }).select(SELECT_FIELDS).first()
+  await db.transaction(async (trx) => {
+    await trx('user_avatars')
+      .insert({
+        user_id: userId,
+        data: req.file.buffer,
+        mime_type: req.file.mimetype,
+        updated_at: trx.fn.now(),
+      })
+      .onConflict('user_id')
+      .merge()
+    await trx('users').where({ id: userId }).update({ avatar })
+  })
+
+  const user = await db('users').where({ id: userId }).select(SELECT_FIELDS).first()
   res.json(user)
 }
 
 async function deleteMyAvatar(req, res) {
-  const current = await db('users').where({ id: req.user.id }).select('avatar').first()
-  removeAvatarFile(current?.avatar)
-  await db('users').where({ id: req.user.id }).update({ avatar: null })
+  await db.transaction(async (trx) => {
+    await trx('user_avatars').where({ user_id: req.user.id }).del()
+    await trx('users').where({ id: req.user.id }).update({ avatar: null })
+  })
   const user = await db('users').where({ id: req.user.id }).select(SELECT_FIELDS).first()
   res.json(user)
 }
 
-module.exports = { list, me, getById, updateMe, updateById, updateMyAvatar, deleteMyAvatar }
+// Público (sin auth): lo pide un <img>, que no puede mandar el Bearer token.
+async function getAvatar(req, res) {
+  if (!UUID_RE.test(req.params.id)) {
+    return res.status(404).json({ error: { message: 'Avatar no encontrado' } })
+  }
+  const row = await db('user_avatars')
+    .where({ user_id: req.params.id })
+    .select('data', 'mime_type')
+    .first()
+  if (!row) {
+    return res.status(404).json({ error: { message: 'Avatar no encontrado' } })
+  }
+  res.set('Content-Type', row.mime_type)
+  res.set('Cache-Control', 'public, max-age=86400')
+  res.send(row.data)
+}
+
+module.exports = {
+  list,
+  me,
+  getById,
+  updateMe,
+  updateById,
+  updateMyAvatar,
+  deleteMyAvatar,
+  getAvatar,
+}

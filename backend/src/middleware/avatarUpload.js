@@ -1,28 +1,15 @@
-const path = require('path')
-const fs = require('fs')
 const multer = require('multer')
 
-// Carpeta donde se guardan los avatares subidos. Se sirve estática en /uploads
-// (ver index.js). Se crea al arrancar para que diskStorage no falle.
-const AVATARS_DIR = path.join(__dirname, '../../uploads/avatars')
-fs.mkdirSync(AVATARS_DIR, { recursive: true })
-
+// La imagen queda en memoria (req.file.buffer) y el controller la guarda en la
+// tabla user_avatars: no se escribe nada en disco, que en Render free es efímero.
 const ALLOWED_MIME = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, AVATARS_DIR),
-  filename: (req, file, cb) => {
-    const ext = ALLOWED_MIME[file.mimetype] || 'png'
-    cb(null, `me-${req.user.id}-${Date.now()}.${ext}`)
-  },
-})
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
   fileFilter: (req, file, cb) => {
     if (ALLOWED_MIME[file.mimetype]) return cb(null, true)
@@ -46,4 +33,4 @@ function avatarUpload(req, res, next) {
   })
 }
 
-module.exports = { avatarUpload, AVATARS_DIR }
+module.exports = { avatarUpload }

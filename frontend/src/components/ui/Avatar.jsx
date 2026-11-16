@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { assetUrl } from '@/api/client'
 
 const colorMap = [
   'bg-primary-100 text-primary-700 dark:bg-primary-800/50 dark:text-primary-200',
@@ -31,7 +32,7 @@ export default function Avatar({ name, src, size = 'md', className = '' }) {
   if (src && !imgFailed) {
     return (
       <img
-        src={src}
+        src={assetUrl(src)}
         alt={safeName}
         onError={() => setImgFailed(true)}
         className={`rounded-full object-cover shrink-0 ${sizes[size]} ${className}`}
