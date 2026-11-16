@@ -21,11 +21,29 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 1))
 
 // CORS_ORIGIN admite varios orígenes separados por coma
 // (ej: https://splitio.onrender.com,https://app.midominio.com).
-const corsOrigin = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173')
+// El navegador manda el Origin sin barra final y la comparación es exacta, así que
+// se normaliza lo que se carga a mano en el dashboard: espacios, comillas, barra final.
+const normalizeOrigin = (origin) =>
+  origin.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '').toLowerCase()
+
+const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173')
   .split(',')
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean)
-app.use(cors({ origin: corsOrigin }))
+console.log(`CORS: orígenes permitidos: ${allowedOrigins.join(', ')}`)
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Sin Origin: pedidos que no vienen de un navegador (curl, health check de Render).
+      if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
+        return callback(null, true)
+      }
+      console.warn(`CORS: origen rechazado: ${origin}`)
+      callback(null, false)
+    },
+  })
+)
 app.use(express.json())
 
 // Health check (lo usa Render para saber si el deploy quedó sano). Toca la base
